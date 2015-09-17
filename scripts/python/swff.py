@@ -1,6 +1,5 @@
 #Looks for available flights given a starting airport and multiple destination airports, sorts by mileage points
 #This script takes: <swff.py> <startingAirPort> <destAirport1>....
-
 #==========================================
 #Current version supports only the following:
 #One-way 
@@ -10,11 +9,8 @@
 
 import os
 import sys
-from mechanize import Browser
-from BeautifulSoup import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 
 
 #Get desired flight path and info from user
@@ -36,7 +32,7 @@ while True:
 	else:
 		continue
 		
-#Open webrowser and enter in data and perform search
+#Open webrowser and enter in tableData and perform search
 browser = webdriver.Firefox()
 browser.get( "https://www.southwest.com/" )
 
@@ -63,23 +59,22 @@ priceTypeElem.click()
 submitElem = browser.find_element_by_id( "jb-booking-form-submit-button" )
 submitElem.click()
 
-#Now on results page. Scrape table data
-data = []
+#Now on results page. Scrape table 
+tableData = []
+flightPointCosts = []
 for tr in browser.find_elements_by_xpath('//table[@id="faresOutbound"]//tr'):
 	tds = tr.find_elements_by_tag_name('td')
-	data.append([td.text for td in tds])
-print type( data[0] )
-#for i in range( 0, len( data ) ):
-	#print data[ i ]
-#data =  data[ 1 ]
-#data = data[ len( data )-1 ]
-#data = data.replace( ",", "" )
-#data = int( data ) #now have integer number
+	tableData.append([td.text for td in tds])
 
-
-
-
-
+#extract only points cost from table data and sort
+for cell in tableData:
+	if len( cell ) > 2:
+		value = cell[ len( cell ) - 1 ]
+		if value == "Sold Out":
+			continue
+		else:
+			flightPointCosts.append( int( value.replace( "," , "" ) ) )
+flightPointCosts = sorted( flightPointCosts )
 
 print( "\n\nDONE" )
 
