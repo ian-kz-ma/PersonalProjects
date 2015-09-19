@@ -14,27 +14,35 @@ def loadAiportCodes( url ):
 	return airportCodes
 
 	
-def initFlightData( flightDict, destinationList ):
-	destAirport = ""
+def initFlightData( flightDict, destinationList, airportCodes ):
+	destAirport = ""	
 	while True:
-		flightDict[ "originAirport" ] = raw_input( "\nEnter the airport code of your origin: " )
+		allValid = True
+		flightDict[ "originAirport" ] = raw_input( "\nEnter the airport code of your origin: " ).upper()
 		print( "Enter the airport code(s) of your destination(s). Press enter after each code, submit 'done' when finished: " )
-		while destAirport  != "done":
-			destAirport = raw_input()
-			destinationList.append( destAirport )
-		destinationList.pop()
 		
+		while destAirport  != "DONE":
+			destAirport = raw_input().upper()
+			if (( destAirport not in airportCodes ) or ( flightDict[ "originAirport" ] not in airportCodes )) and ( destAirport != "DONE" ):
+				print "The code %s does not exist. Please re-enter your airport codes." % ( destAirport )
+				allValid = False
+				break
+			destinationList.append( destAirport )
+		if allValid == False:
+			del destinationList[ : ]
+			continue
+		destinationList.pop()
+				
 		flightDict[ "departMonth" ] = raw_input( "Enter the month of departure [1 - 12]: " )
 		flightDict[ "departDay" ] = raw_input( "Enter the day of departure [1 - 31]: " )
-
 		print( "\nYou entered the following information, is this correct? " )
 		print( "Departure date: %s / %s" % ( flightDict[ "departMonth" ], flightDict[ "departDay" ] ) )
 		print( "Departing from: %s" % ( flightDict[ "originAirport" ]) )
 		print( "Comparing the following arrival airport costs (points): "),
 		for i in range( 0, len( destinationList ) ):
 			print( destinationList[ i ] + " " ),
+			
 		flightQueryCont = raw_input( "\nEnter 'y' to begin search. Enter any other letter to resubmit request: " )
-		
 		if flightQueryCont == 'y':
 			break
 		else:
@@ -42,20 +50,18 @@ def initFlightData( flightDict, destinationList ):
 
 			
 def scrapeResults( flightPointCosts, htmlTableData, browser, destAirport, resultsDict	 ):
+	#Cost in points is always last element where list is of size > 2, better way to do this?
 	for tr in browser.find_elements_by_xpath('//table[@id="faresOutbound"]//tr'):
 		tds = tr.find_elements_by_tag_name('td')
 		htmlTableData.append([td.text for td in tds])
-
-	#Cost in points is always last element where list of size > 2
 	for cell in htmlTableData:
 		if len( cell ) > 2:
 			value = cell[ len( cell ) - 1 ]
-			if value == "Sold Out" or value == "Unavailable":
-				continue
-			else:
+			if( any( i.isdigit() for i in value ) ):
 				flightPointCosts.append( int( value.replace( "," , "" ) ) )
+			else:
+				continue
 	flightPointCosts.sort()
-	
 	if flightPointCosts[ 0 ] < resultsDict[ "lowestFareCost" ]:
 		resultsDict[ "lowestFareAirport" ] = destAirport
 		resultsDict[ "lowestFareCost" ] = flightPointCosts[ 0 ]
@@ -92,14 +98,12 @@ def main():
 	airportCodes = []
 	flightDict = { "originAirport" : "", "departDay" : "", "departMonth" : "" }
 	resultsDict = { "lowestFareAirport" : "", "lowestFareCost" : 999999 }
-
 	airportCodes = loadAiportCodes( url )	
-	initFlightData( flightDict, destinationList )	
+	initFlightData( flightDict, destinationList, airportCodes )	
 
 	print "\nCalculating cost(s) in points...\n"
 	print flightDict[ "originAirport" ].upper() + " ->:   ",
 	browser = webdriver.Firefox()
-	
 	for destAirport in destinationList:
 		htmlTableData = []
 		flightPointCosts = []
@@ -107,8 +111,6 @@ def main():
 		browser.get( "https://www.southwest.com/" )	
 		inputFlightData( flightDict, destAirport, browser )
 		scrapeResults( flightPointCosts, htmlTableData, browser, destAirport, resultsDict )
-
-		#display results of currect destination and new tab if more dests exist
 		if destAirport == destinationList[ 0 ]:
 			print destAirport.upper() + "  | ",
 			for elem in flightPointCosts:
