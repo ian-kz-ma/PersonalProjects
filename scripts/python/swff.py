@@ -1,5 +1,7 @@
-#Looks for available flights given a starting airport and multiple destination airports, sorts by mileage points
-#Current version supports multiple airports, displays results in table format
+#Looks for available flights given a starting airport and multiple destination airports, sorts results by mileage points for
+#	southwest flights only
+#Current version supports multiple airports, displays results in table format. User must know airport code before hand.
+#Submitted airport codes will be checked with database.
 
 import sys
 import urllib2
@@ -15,21 +17,25 @@ def loadAiportCodes( url ):
 
 	
 def initFlightData( flightDict, destinationList, airportCodes ):
-	destAirport = ""	
 	while True:
+		destAirport = ""
 		allValid = True
+		del destinationList[ : ]
+		
 		flightDict[ "originAirport" ] = raw_input( "\nEnter the airport code of your origin: " ).upper()
+		if flightDict[ "originAirport" ] not in airportCodes:
+			print( "The code %s does not exist. Please re-enter your origin code." % ( flightDict[ "originAirport" ] ) )
+			continue
 		print( "Enter the airport code(s) of your destination(s). Press enter after each code, submit 'done' when finished: " )
 		
-		while destAirport  != "DONE":
+		while destAirport != "DONE":
 			destAirport = raw_input().upper()
-			if (( destAirport not in airportCodes ) or ( flightDict[ "originAirport" ] not in airportCodes )) and ( destAirport != "DONE" ):
+			if ( destAirport not in airportCodes and destAirport != "DONE" ):
 				print "The code %s does not exist. Please re-enter your airport codes." % ( destAirport )
 				allValid = False
 				break
 			destinationList.append( destAirport )
 		if allValid == False:
-			del destinationList[ : ]
 			continue
 		destinationList.pop()
 				
@@ -41,7 +47,6 @@ def initFlightData( flightDict, destinationList, airportCodes ):
 		print( "Comparing the following arrival airport costs (points): "),
 		for i in range( 0, len( destinationList ) ):
 			print( destinationList[ i ] + " " ),
-			
 		flightQueryCont = raw_input( "\nEnter 'y' to begin search. Enter any other letter to resubmit request: " )
 		if flightQueryCont == 'y':
 			break
@@ -49,8 +54,9 @@ def initFlightData( flightDict, destinationList, airportCodes ):
 			continue
 
 			
-def scrapeResults( flightPointCosts, htmlTableData, browser, destAirport, resultsDict	 ):
-	#Cost in points is always last element where list is of size > 2, better way to do this?
+def scrapeResults( flightPointCosts, htmlTableData, browser, destAirport, resultsDict ):
+	#Cost in points is always last element where list is of size > 2
+	#Definetely a better way to do this....
 	for tr in browser.find_elements_by_xpath('//table[@id="faresOutbound"]//tr'):
 		tds = tr.find_elements_by_tag_name('td')
 		htmlTableData.append([td.text for td in tds])
@@ -107,7 +113,6 @@ def main():
 	for destAirport in destinationList:
 		htmlTableData = []
 		flightPointCosts = []
-		
 		browser.get( "https://www.southwest.com/" )	
 		inputFlightData( flightDict, destAirport, browser )
 		scrapeResults( flightPointCosts, htmlTableData, browser, destAirport, resultsDict )
@@ -119,7 +124,6 @@ def main():
 			print "\n           " + destAirport.upper() + "  | ",
 			for elem in flightPointCosts:
 				print str( elem ) + " | ",
-		
 		if destAirport != destinationList[ -1 ]:
 			tabGen = browser.find_element_by_tag_name( "body" )
 			tabGen.send_keys( Keys.CONTROL + "t" )
@@ -128,17 +132,6 @@ def main():
 	print "\n\nDONE\n\n"
 
 main()
-
-
-
-
-
-
-
-
-
-
-
 
 
 		
